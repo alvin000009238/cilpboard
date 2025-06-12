@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跨裝置剪貼簿</title>
+    <title>跨裝置雲端剪貼簿 (專家模式重構版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -145,6 +145,7 @@
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, serverTimestamp, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app-check.js";
 
         // --- App 主函式 ---
         function ClipboardApp() {
@@ -190,12 +191,19 @@
                 auth = getAuth(app);
                 db = getFirestore(app);
                 storage = getStorage(app);
+
+                // ! App Check 初始化 (已更新)
+                const appCheck = initializeAppCheck(app, {
+                    provider: new ReCaptchaV3Provider('6LdF710rAAAAAEAKetd-9l5kqtDTrx4ZPncI1izp'),
+                    isTokenAutoRefreshEnabled: true
+                });
+
             } catch (error) {
                 console.error("Firebase 初始化失敗:", error);
                 DOMElements.appLoader.textContent = "應用程式初始化失敗，請檢查主控台。";
             }
 
-            // --- 核心功能函式 ---
+            // --- 核心功能函式 (與前一版相同) ---
             function getAuthErrorMessage(errorCode) {
                 switch (errorCode) {
                     case 'auth/invalid-email': return '電子郵件格式不正確。';
@@ -218,7 +226,6 @@
                     } else {
                         await createUserWithEmailAndPassword(auth, email, password);
                     }
-                    // 不需要手動切換畫面，onAuthStateChanged 會處理
                 } catch (error) {
                     errorEl.textContent = getAuthErrorMessage(error.code);
                 } finally {
@@ -281,7 +288,12 @@
                 const uploadTask = uploadBytesResumable(ref(storage, storagePath), file);
                 uploadTask.on('state_changed', 
                     (snapshot) => { const progress = snapshot.bytesTransferred / snapshot.totalBytes; const offset = circumference - progress * circumference; progressRing.style.strokeDashoffset = offset; percentageText.textContent = `${Math.round(progress * 100)}%`; }, 
-                    (error) => { showToast('上傳失敗', 'error'); statusText.textContent = '上傳失敗'; setTimeout(() => progressContainer.classList.add('hidden'), 3000); }, 
+                    (error) => {
+                        console.error("Upload error:", error);
+                        showToast(`上傳失敗: ${error.code}`, 'error'); 
+                        statusText.textContent = '上傳失敗'; 
+                        setTimeout(() => progressContainer.classList.add('hidden'), 3000); 
+                    }, 
                     async () => {
                         statusText.textContent = '處理中...';
                         percentageText.innerHTML = `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
@@ -306,13 +318,11 @@
                     itemElement.addEventListener('animationend', () => itemElement.remove(), { once: true });
                 }
                 try {
-                    // Start backend deletion while animation runs
                     if ((type === 'file' || type === 'image') && fileRefPath) { await deleteObject(ref(storage, fileRefPath)); }
                     await deleteDoc(doc(db, `users/${currentUserId}/clipboard/${id}`));
                     showToast('項目已刪除');
                 } catch (error) {
                     showToast('刪除失敗，請重整頁面', 'error');
-                    // If deletion fails, revert the UI change
                     if (itemElement) {
                          itemElement.classList.remove('animate-fade-out');
                          itemElement.classList.add('animate-fade-in');
@@ -320,7 +330,7 @@
                 }
             }
 
-            // --- UI 渲染與輔助函式 (重構後) ---
+            // --- UI 渲染與輔助函式 (與前一版相同) ---
             function renderItems(itemsToDisplay, isSearch) {
                 hideAllPlaceholders();
                 
@@ -333,7 +343,6 @@
                 const existingIds = new Set([...DOMElements.itemListWrapper.children].map(el => el.dataset.id));
                 const newIds = new Set(itemsToDisplay.map(item => item.id));
 
-                // Remove old items that are not in the new list
                 existingIds.forEach(id => {
                     if (!newIds.has(id)) {
                         const el = DOMElements.itemListWrapper.querySelector(`[data-id="${id}"]`);
@@ -345,7 +354,6 @@
                     }
                 });
 
-                // Add or update items
                 itemsToDisplay.forEach((item, index) => {
                     let itemDiv = DOMElements.itemListWrapper.querySelector(`[data-id="${item.id}"]`);
                     
