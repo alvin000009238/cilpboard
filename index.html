@@ -157,6 +157,7 @@
         import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app-check.js";
 
         function ClipboardApp() {
+            // ... (狀態管理與 DOM 節點) ...
             let currentUserId = null;
             let unsubscribeClipboard = null;
             let allItems = [];
@@ -184,7 +185,8 @@
                 apiKey: "AIzaSyCaYpn4SvP117S_lV-6uCQDrHjBtHcHkhk",
                 authDomain: "clipboard-f3019.firebaseapp.com",
                 projectId: "clipboard-f3019",
-                storageBucket: "clipboard-f3019.appspot.com",
+                // ! 已修正: 使用您專案正確的儲存空間位址
+                storageBucket: "clipboard-f3019.firebasestorage.app", 
                 messagingSenderId: "220938416540",
                 appId: "1:220938416540:web:43b19eb65f59ae02ded859",
                 measurementId: "G-F7BS021E8D"
@@ -200,11 +202,13 @@
                     provider: new ReCaptchaV3Provider('6LdF710rAAAAAEAKetd-9l5kqtDTrx4ZPncI1izp'),
                     isTokenAutoRefreshEnabled: true
                 });
+
             } catch (error) {
                 console.error("Firebase 初始化失敗:", error);
                 DOMElements.appLoader.textContent = "應用程式初始化失敗，請檢查主控台。";
             }
 
+            // ... (其餘所有函式與事件監聽器與前一版完全相同) ...
             function getAuthErrorMessage(errorCode) {
                 switch (errorCode) {
                     case 'auth/invalid-email': return '電子郵件格式不正確。';
