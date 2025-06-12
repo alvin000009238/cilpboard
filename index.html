@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跨裝置雲端剪貼簿 (專家模式重構版)</title>
+    <title>雲端剪貼簿</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -203,7 +203,7 @@
                 DOMElements.appLoader.textContent = "應用程式初始化失敗，請檢查主控台。";
             }
 
-            // --- 核心功能函式 (與前一版相同) ---
+            // --- 核心功能函式 ---
             function getAuthErrorMessage(errorCode) {
                 switch (errorCode) {
                     case 'auth/invalid-email': return '電子郵件格式不正確。';
@@ -330,7 +330,7 @@
                 }
             }
 
-            // --- UI 渲染與輔助函式 (與前一版相同) ---
+            // --- UI 渲染與輔助函式 ---
             function renderItems(itemsToDisplay, isSearch) {
                 hideAllPlaceholders();
                 
