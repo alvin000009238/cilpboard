@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跨裝置雲端剪貼簿 (升級版)</title>
+    <title>跨裝置剪貼簿</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -211,8 +211,19 @@
 
         // --- 常數 ---
         const CORRECT_PASSWORD = '0408';
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'cross-device-clipboard';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = 'cross-device-clipboard'; // 使用一個簡單的名稱來區分資料庫中的資料
+
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        // 您專屬的 Firebase 設定，已更新
+        const firebaseConfig = {
+          apiKey: "AIzaSyCaYpn4SvP117S_lV-6uCQDrHjBtHcHkhk",
+          authDomain: "clipboard-f3019.firebaseapp.com",
+          projectId: "clipboard-f3019",
+          storageBucket: "clipboard-f3019.appspot.com",
+          messagingSenderId: "220938416540",
+          appId: "1:220938416540:web:43b19eb65f59ae02ded859",
+          measurementId: "G-F7BS021E8D"
+        };
 
         // --- 變數 ---
         let app, auth, db, storage;
@@ -225,8 +236,7 @@
         const appContainer = document.getElementById('app-container');
         const themeToggle = document.getElementById('theme-toggle');
         const searchInput = document.getElementById('search-input');
-        // ... (其他 DOM 元素)
-
+        
         // --- 密碼與初始化 ---
         document.getElementById('password-form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -240,13 +250,18 @@
                 document.getElementById('password-error').textContent = '密碼錯誤，請再試一次。';
                 passwordInput.value = '';
                 passwordInput.focus();
-                passwordOverlay.querySelector('.bg-white').classList.add('animate-shake');
-                setTimeout(() => passwordOverlay.querySelector('.bg-white').classList.remove('animate-shake'), 500);
+                const formBox = passwordOverlay.querySelector('.bg-white, .dark\\:bg-slate-800');
+                if(formBox) {
+                    formBox.classList.add('animate-shake');
+                    setTimeout(() => formBox.classList.remove('animate-shake'), 500);
+                }
             }
         });
 
         async function initializeFirebase() {
             try {
+                // 防止重複初始化
+                if (app) return; 
                 app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
@@ -254,7 +269,7 @@
                 setupAuthListener();
             } catch (error) {
                 console.error("Firebase 初始化失敗:", error);
-                document.getElementById('auth-status').textContent = "錯誤：無法初始化應用程式。";
+                document.getElementById('auth-status').textContent = "錯誤：無法初始化應用程式。請檢查 API 金鑰與專案設定。";
             }
         }
 
@@ -287,25 +302,16 @@
                     currentUserId = null;
                     authStatusEl.textContent = '正在匿名登入中...';
                     if (unsubscribeClipboard) unsubscribeClipboard();
-                    signIn();
+                    // 在外部環境中，我們不再依賴 __initial_auth_token，直接匿名登入
+                    signInAnonymously(auth).catch(error => {
+                        console.error("匿名登入失敗:", error);
+                        authStatusEl.textContent = "錯誤：無法登入。功能將受限。";
+                    });
                 }
             });
         }
         
-        async function signIn() {
-             try {
-                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("登入失敗:", error);
-            }
-        }
-
-        // --- Firestore & Storage 操作 ---
+        // --- Firestore & Storage 操作 (與前一版相同) ---
         function listenToClipboardChanges() {
             if (!currentUserId) return;
             const collectionPath = `artifacts/${appId}/users/${currentUserId}/clipboard`;
@@ -347,7 +353,6 @@
 
         function handleFileUpload(file) {
             if (!currentUserId || !file) return;
-            // ... (上傳邏輯與前一版類似，但新增 pinned: false) ...
             const uploadProgressContainer = document.getElementById('upload-progress-container');
             const uploadProgressBar = document.getElementById('upload-progress-bar');
             const uploadFilename = document.getElementById('upload-filename');
@@ -422,21 +427,25 @@
             }
         }
         
-        // --- 搜尋與渲染 ---
+        // --- 搜尋與渲染 (與前一版相同) ---
         searchInput.addEventListener('input', (e) => {
             const searchTerm = e.target.value.toLowerCase();
             const filteredItems = allItems.filter(item => {
                 const content = (item.content || item.fileName || '').toLowerCase();
                 return content.includes(searchTerm);
             });
-            renderItems(filteredItems);
-            document.getElementById('no-results-state').classList.toggle('hidden', filteredItems.length > 0 || allItems.length === 0);
+            renderItems(filteredItems, true); // Pass a flag to indicate it's a search render
         });
         
-        function renderItems(items) {
+        function renderItems(items, isSearch = false) {
             const container = document.getElementById('clipboard-items-container');
             container.querySelectorAll('.clipboard-item').forEach(el => el.remove());
             document.getElementById('empty-state').classList.toggle('hidden', allItems.length > 0);
+            if(isSearch) {
+                 document.getElementById('no-results-state').classList.toggle('hidden', items.length > 0);
+            } else {
+                document.getElementById('no-results-state').classList.add('hidden');
+            }
 
             items.forEach(item => {
                 const template = document.getElementById('clipboard-item-template').content.cloneNode(true);
@@ -446,7 +455,6 @@
                 const contentContainer = itemDiv.querySelector('.flex-1');
                 let searchContent = '';
 
-                // ... (渲染不同類型的項目) ...
                  if (item.type === 'text') {
                     searchContent = item.content;
                     contentContainer.innerHTML = `
@@ -477,10 +485,9 @@
                 itemDiv.dataset.searchContent = searchContent.toLowerCase();
                 itemDiv.querySelector('.timestamp').textContent = item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleString() : '處理中...';
                 
-                // 釘選按鈕
                 const pinBtn = itemDiv.querySelector('.pin-btn');
                 if (item.pinned) {
-                    pinBtn.classList.add('text-indigo-500');
+                    pinBtn.classList.add('text-indigo-500', 'dark:text-indigo-400');
                     pinBtn.querySelector('svg').setAttribute('fill', 'currentColor');
                 }
                 pinBtn.addEventListener('click', () => togglePin(item.id, item.pinned));
@@ -497,6 +504,7 @@
         let toastTimer;
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
             toastMessage.textContent = message;
             toast.className = `fixed bottom-5 right-5 text-white px-5 py-3 rounded-lg shadow-xl transition-transform duration-300 ease-in-out ${type === 'success' ? 'bg-green-500' : 'bg-red-600'}`;
             toast.style.transform = 'translateX(0)';
@@ -519,7 +527,6 @@
                     handleFileUpload(file);
                 }
             });
-            // 拖曳上傳
             const dropZone = document.getElementById('drop-zone');
             dropZone.addEventListener('dragover', (e) => {
                 e.preventDefault();
