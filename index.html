@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跨裝置雲端剪貼簿 (升級版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        // 為了在 TailwindCSS dark mode 生效，需要在 head 中提前設定
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f1f5f9; /* light mode bg */
+        }
+        html.dark body {
+            background-color: #0f172a; /* dark mode bg */
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        html.dark ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+        html.dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        html.dark ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .loader {
+            border: 4px solid #e2e8f0; /* light */
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        html.dark .loader {
+             border: 4px solid #334155; /* dark */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.5s ease-out forwards;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-slate-200 transition-colors duration-300">
+
+    <!-- 密碼鎖定畫面 -->
+    <div id="password-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-200/50 dark:bg-slate-900/50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-sm p-8 rounded-xl shadow-2xl m-4">
+            <h2 class="text-2xl font-bold text-center text-slate-800 dark:text-slate-100 mb-2">需要授權</h2>
+            <p class="text-center text-slate-500 dark:text-slate-400 mb-6">請輸入密碼以存取剪貼簿。</p>
+            <form id="password-form">
+                <div class="mb-4">
+                    <label for="password-input" class="sr-only">密碼</label>
+                    <input type="password" id="password-input" class="w-full text-center p-3 border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg tracking-widest" placeholder="••••">
+                </div>
+                <p id="password-error" class="text-red-500 text-sm text-center mb-4 h-5"></p>
+                <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-slate-800 transition duration-300">
+                    解鎖
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 主應用程式容器 (預設隱藏) -->
+    <div id="app-container" class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 hidden">
+        
+        <!-- 頁首與控制項 -->
+        <header class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-slate-50">雲端剪貼簿</h1>
+                <button id="theme-toggle" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-slate-900">
+                    <!-- Icons will be injected by JS -->
+                </button>
+            </div>
+             <div class="relative">
+                <input type="search" id="search-input" placeholder="搜尋您的剪貼內容..." class="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+        </header>
+
+        <!-- 輸入區塊 -->
+        <div id="input-section" class="mb-8 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+            <!-- 文字輸入 -->
+            <div class="mb-4">
+                <label for="text-input" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">新增文字</label>
+                <textarea id="text-input" rows="4" class="w-full p-3 border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" placeholder="在這裡輸入或貼上文字..."></textarea>
+                <button id="add-text-btn" class="mt-2 w-full sm:w-auto bg-indigo-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-indigo-700 transition duration-300 disabled:bg-indigo-400 dark:disabled:bg-indigo-800">
+                    新增文字
+                </button>
+            </div>
+            
+            <!-- 檔案上傳 -->
+            <div>
+                <label for="file-input-label" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">上傳圖片或檔案</label>
+                <div id="drop-zone" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-md">
+                    <div class="space-y-1 text-center">
+                        <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                        <div class="flex text-sm text-slate-600 dark:text-slate-400">
+                            <label for="file-input" class="relative cursor-pointer bg-white dark:bg-slate-800 rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                <span>選擇一個檔案</span>
+                                <input id="file-input" name="file-input" type="file" class="sr-only">
+                            </label>
+                            <p class="pl-1">或拖曳到此處</p>
+                        </div>
+                        <p class="text-xs text-slate-500 dark:text-slate-500">最大 50MB</p>
+                    </div>
+                </div>
+                <div id="upload-progress-container" class="mt-3 hidden">
+                    <div class="flex justify-between mb-1"><span id="upload-filename" class="text-sm font-medium"></span><span id="upload-percentage" class="text-sm font-medium">0%</span></div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5"><div id="upload-progress-bar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 剪貼簿內容 -->
+        <div id="clipboard-items-container">
+            <div id="loader" class="flex justify-center py-10"><div class="loader"></div></div>
+            <div id="empty-state" class="text-center py-16 text-slate-500 hidden">
+                <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                <h3 class="mt-2 text-sm font-medium text-slate-900 dark:text-slate-50">沒有項目</h3>
+                <p class="mt-1 text-sm">開始新增一些文字或檔案吧！</p>
+            </div>
+             <div id="no-results-state" class="text-center py-16 text-slate-500 hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <h3 class="mt-2 text-sm font-medium text-slate-900 dark:text-slate-50">找不到結果</h3>
+                <p class="mt-1 text-sm">試試看其他的關鍵字吧。</p>
+            </div>
+        </div>
+        
+        <!-- 使用者 ID 顯示 -->
+         <footer class="mt-8 text-center text-xs text-slate-500 dark:text-slate-400">
+            <div id="auth-status" class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm">
+                正在初始化...
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Toast 通知 -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 dark:bg-green-600 text-white px-5 py-3 rounded-lg shadow-xl translate-x-[calc(100%+20px)] transition-transform duration-300 ease-in-out">
+        <span id="toast-message"></span>
+    </div>
+
+    <!-- 項目模板 -->
+    <template id="clipboard-item-template">
+        <div class="clipboard-item bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden mb-4 animate-fade-in" data-search-content="">
+            <div class="p-4 sm:p-5">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0 mr-4">
+                        <!-- 內容會動態插入這裡 -->
+                    </div>
+                    <div class="flex-shrink-0 flex flex-col sm:flex-row items-center gap-2">
+                        <button class="pin-btn p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                        </button>
+                        <button class="delete-btn p-2 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-3 text-xs text-slate-400 dark:text-slate-500">
+                    <span class="timestamp"></span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        // --- 常數 ---
+        const CORRECT_PASSWORD = '0408';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'cross-device-clipboard';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+        // --- 變數 ---
+        let app, auth, db, storage;
+        let currentUserId = null;
+        let unsubscribeClipboard = null;
+        let allItems = [];
+
+        // --- DOM 元素 ---
+        const passwordOverlay = document.getElementById('password-overlay');
+        const appContainer = document.getElementById('app-container');
+        const themeToggle = document.getElementById('theme-toggle');
+        const searchInput = document.getElementById('search-input');
+        // ... (其他 DOM 元素)
+
+        // --- 密碼與初始化 ---
+        document.getElementById('password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const passwordInput = document.getElementById('password-input');
+            if (passwordInput.value === CORRECT_PASSWORD) {
+                passwordOverlay.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                appContainer.classList.add('animate-fade-in');
+                initializeFirebase();
+            } else {
+                document.getElementById('password-error').textContent = '密碼錯誤，請再試一次。';
+                passwordInput.value = '';
+                passwordInput.focus();
+                passwordOverlay.querySelector('.bg-white').classList.add('animate-shake');
+                setTimeout(() => passwordOverlay.querySelector('.bg-white').classList.remove('animate-shake'), 500);
+            }
+        });
+
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                storage = getStorage(app);
+                setupAuthListener();
+            } catch (error) {
+                console.error("Firebase 初始化失敗:", error);
+                document.getElementById('auth-status').textContent = "錯誤：無法初始化應用程式。";
+            }
+        }
+
+        // --- 主題切換 ---
+        const sunIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`;
+        const moonIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>`;
+        
+        function updateThemeIcon() {
+            if (document.documentElement.classList.contains('dark')) {
+                themeToggle.innerHTML = sunIcon;
+            } else {
+                themeToggle.innerHTML = moonIcon;
+            }
+        }
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+            updateThemeIcon();
+        });
+
+        // --- 驗證 ---
+        function setupAuthListener() {
+            onAuthStateChanged(auth, async (user) => {
+                const authStatusEl = document.getElementById('auth-status');
+                if (user) {
+                    currentUserId = user.uid;
+                    authStatusEl.innerHTML = `已連線 <strong class="font-mono text-indigo-600 dark:text-indigo-400">${currentUserId.substring(0,8)}...</strong>`;
+                    listenToClipboardChanges();
+                } else {
+                    currentUserId = null;
+                    authStatusEl.textContent = '正在匿名登入中...';
+                    if (unsubscribeClipboard) unsubscribeClipboard();
+                    signIn();
+                }
+            });
+        }
+        
+        async function signIn() {
+             try {
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("登入失敗:", error);
+            }
+        }
+
+        // --- Firestore & Storage 操作 ---
+        function listenToClipboardChanges() {
+            if (!currentUserId) return;
+            const collectionPath = `artifacts/${appId}/users/${currentUserId}/clipboard`;
+            const q = query(collection(db, collectionPath), orderBy('pinned', 'desc'), orderBy('timestamp', 'desc'));
+
+            unsubscribeClipboard = onSnapshot(q, (querySnapshot) => {
+                document.getElementById('loader').classList.add('hidden');
+                allItems = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderItems(allItems);
+            }, (error) => {
+                console.error("監聽剪貼簿失敗:", error);
+            });
+        }
+        
+        async function addTextItem() {
+            const textInput = document.getElementById('text-input');
+            const addTextBtn = document.getElementById('add-text-btn');
+            if (!currentUserId || !textInput.value.trim()) return;
+
+            addTextBtn.disabled = true;
+            addTextBtn.textContent = '新增中...';
+            try {
+                const collectionPath = `artifacts/${appId}/users/${currentUserId}/clipboard`;
+                await addDoc(collection(db, collectionPath), {
+                    type: 'text',
+                    content: textInput.value,
+                    pinned: false,
+                    timestamp: serverTimestamp(),
+                });
+                textInput.value = '';
+                showToast('文字已新增');
+            } catch (error) {
+                showToast('新增文字失敗', 'error');
+            } finally {
+                addTextBtn.disabled = false;
+                addTextBtn.textContent = '新增文字';
+            }
+        }
+
+        function handleFileUpload(file) {
+            if (!currentUserId || !file) return;
+            // ... (上傳邏輯與前一版類似，但新增 pinned: false) ...
+            const uploadProgressContainer = document.getElementById('upload-progress-container');
+            const uploadProgressBar = document.getElementById('upload-progress-bar');
+            const uploadFilename = document.getElementById('upload-filename');
+            const uploadPercentage = document.getElementById('upload-percentage');
+
+            uploadProgressContainer.classList.remove('hidden');
+            uploadFilename.textContent = file.name;
+
+            const storagePath = `artifacts/${appId}/users/${currentUserId}/${Date.now()}-${file.name}`;
+            const storageRef = ref(storage, storagePath);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    uploadProgressBar.style.width = progress + '%';
+                    uploadPercentage.textContent = Math.round(progress) + '%';
+                }, 
+                (error) => {
+                    showToast('上傳失敗', 'error');
+                }, 
+                async () => {
+                    try {
+                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                        const collectionPath = `artifacts/${appId}/users/${currentUserId}/clipboard`;
+                        await addDoc(collection(db, collectionPath), {
+                            type: file.type.startsWith('image/') ? 'image' : 'file',
+                            fileName: file.name,
+                            fileURL: downloadURL,
+                            storagePath: storagePath,
+                            pinned: false,
+                            timestamp: serverTimestamp()
+                        });
+                        showToast('檔案上傳成功');
+                    } catch (e) {
+                         showToast('上傳後處理失敗', 'error');
+                    } finally {
+                        setTimeout(() => uploadProgressContainer.classList.add('hidden'), 2000);
+                        document.getElementById('file-input').value = '';
+                    }
+                }
+            );
+        }
+
+        async function togglePin(id, currentStatus) {
+            if (!currentUserId) return;
+            const docPath = `artifacts/${appId}/users/${currentUserId}/clipboard/${id}`;
+            try {
+                await updateDoc(doc(db, docPath), {
+                    pinned: !currentStatus
+                });
+                showToast(!currentStatus ? '已釘選' : '已取消釘選');
+            } catch (error) {
+                showToast('釘選操作失敗', 'error');
+            }
+        }
+        
+        async function deleteItem(id, type, fileRefPath) {
+            if (!currentUserId) return;
+            const itemElement = document.querySelector(`[data-id="${id}"]`);
+            if(itemElement) itemElement.style.opacity = '0.5';
+
+            try {
+                if ((type === 'file' || type === 'image') && fileRefPath) {
+                    await deleteObject(ref(storage, fileRefPath));
+                }
+                await deleteDoc(doc(db, `artifacts/${appId}/users/${currentUserId}/clipboard/${id}`));
+                showToast('項目已刪除');
+            } catch (error) {
+                showToast('刪除失敗', 'error');
+                if(itemElement) itemElement.style.opacity = '1';
+            }
+        }
+        
+        // --- 搜尋與渲染 ---
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredItems = allItems.filter(item => {
+                const content = (item.content || item.fileName || '').toLowerCase();
+                return content.includes(searchTerm);
+            });
+            renderItems(filteredItems);
+            document.getElementById('no-results-state').classList.toggle('hidden', filteredItems.length > 0 || allItems.length === 0);
+        });
+        
+        function renderItems(items) {
+            const container = document.getElementById('clipboard-items-container');
+            container.querySelectorAll('.clipboard-item').forEach(el => el.remove());
+            document.getElementById('empty-state').classList.toggle('hidden', allItems.length > 0);
+
+            items.forEach(item => {
+                const template = document.getElementById('clipboard-item-template').content.cloneNode(true);
+                const itemDiv = template.querySelector('.clipboard-item');
+                itemDiv.dataset.id = item.id;
+                
+                const contentContainer = itemDiv.querySelector('.flex-1');
+                let searchContent = '';
+
+                // ... (渲染不同類型的項目) ...
+                 if (item.type === 'text') {
+                    searchContent = item.content;
+                    contentContainer.innerHTML = `
+                        <p class="text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">${escapeHTML(item.content)}</p>
+                        <button class="copy-text-btn mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">複製文字</button>
+                    `;
+                    contentContainer.querySelector('.copy-text-btn').addEventListener('click', (e) => {
+                        e.currentTarget.textContent = '已複製！';
+                        navigator.clipboard.writeText(item.content);
+                        showToast('已複製到剪貼簿');
+                        setTimeout(() => { e.currentTarget.textContent = '複製文字'; }, 2000);
+                    });
+                } else if (item.type === 'image') {
+                    searchContent = item.fileName;
+                    contentContainer.innerHTML = `
+                        <p class="font-medium break-all">${escapeHTML(item.fileName)}</p>
+                        <img src="${item.fileURL}" alt="${escapeHTML(item.fileName)}" loading="lazy" class="mt-3 rounded-lg max-h-80 w-auto object-contain bg-slate-100 dark:bg-slate-700" />
+                        <a href="${item.fileURL}" target="_blank" download="${escapeHTML(item.fileName)}" class="inline-block mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">下載圖片</a>
+                    `;
+                } else if (item.type === 'file') {
+                    searchContent = item.fileName;
+                    contentContainer.innerHTML = `
+                        <div class="flex items-center"><svg class="w-8 h-8 text-slate-500 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0011.586 3H7a2 2 0 00-2 2v16a2 2 0 002 2z" /></svg><span class="font-medium break-all">${escapeHTML(item.fileName)}</span></div>
+                        <a href="${item.fileURL}" target="_blank" download="${escapeHTML(item.fileName)}" class="inline-block mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">下載檔案</a>
+                    `;
+                }
+
+                itemDiv.dataset.searchContent = searchContent.toLowerCase();
+                itemDiv.querySelector('.timestamp').textContent = item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleString() : '處理中...';
+                
+                // 釘選按鈕
+                const pinBtn = itemDiv.querySelector('.pin-btn');
+                if (item.pinned) {
+                    pinBtn.classList.add('text-indigo-500');
+                    pinBtn.querySelector('svg').setAttribute('fill', 'currentColor');
+                }
+                pinBtn.addEventListener('click', () => togglePin(item.id, item.pinned));
+                itemDiv.querySelector('.delete-btn').addEventListener('click', () => deleteItem(item.id, item.type, item.storagePath));
+
+                container.appendChild(template);
+            });
+        }
+        
+        function escapeHTML(str) {
+            return str ? str.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]) : '';
+        }
+        
+        let toastTimer;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toastMessage.textContent = message;
+            toast.className = `fixed bottom-5 right-5 text-white px-5 py-3 rounded-lg shadow-xl transition-transform duration-300 ease-in-out ${type === 'success' ? 'bg-green-500' : 'bg-red-600'}`;
+            toast.style.transform = 'translateX(0)';
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.style.transform = 'translateX(calc(100% + 20px))';
+            }, 3000);
+        }
+
+        // --- 事件監聽器設定 ---
+        function setupEventListeners() {
+            document.getElementById('add-text-btn').addEventListener('click', addTextItem);
+            document.getElementById('text-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTextItem(); }
+            });
+            document.getElementById('file-input').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.size > 50 * 1024 * 1024) { showToast('檔案大小超過 50MB', 'error'); return; }
+                    handleFileUpload(file);
+                }
+            });
+            // 拖曳上傳
+            const dropZone = document.getElementById('drop-zone');
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-indigo-500', 'bg-slate-50', 'dark:bg-slate-700');
+            });
+             dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-indigo-500', 'bg-slate-50', 'dark:bg-slate-700');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-indigo-500', 'bg-slate-50', 'dark:bg-slate-700');
+                const file = e.dataTransfer.files[0];
+                 if (file) {
+                    if (file.size > 50 * 1024 * 1024) { showToast('檔案大小超過 50MB', 'error'); return; }
+                    handleFileUpload(file);
+                }
+            });
+        }
+        
+        // --- 應用程式啟動點 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('password-input').focus();
+            updateThemeIcon();
+            setupEventListeners();
+        });
+
+    </script>
+</body>
+</html>
+
