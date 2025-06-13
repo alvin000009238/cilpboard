@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的應用程式</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        /* 簡單的亮點效果 */
+        .spotlight {
+            background: radial-gradient(circle at 50% 0, rgba(45, 212, 191, 0.15), transparent 40%);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 antialiased spotlight">
+
+    <!-- 主容器 -->
+    <div class="container mx-auto px-4 py-12 md:py-20">
+
+        <!-- 頁首 -->
+        <header class="text-center mb-12 md:mb-16">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-3">我的應用程式</h1>
+            <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto">這是我開發的一些專案和工具，歡迎探索！</p>
+        </header>
+
+        <!-- 應用程式網格 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+            <!-- 應用程式卡片 1 (範例) -->
+            <div class="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-300">
+                <div class="p-6">
+                    <div class="flex items-center mb-4">
+                        <!-- 圖示 -->
+                        <div class="w-12 h-12 bg-teal-500/10 border border-teal-500/30 rounded-lg flex items-center justify-center mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">任務管理器</h3>
+                    </div>
+                    <p class="text-gray-400 mb-6 h-12">一個簡單直觀的待辦事項應用程式，幫助您保持井井有條。</p>
+                    <a href="#" class="block w-full text-center bg-teal-600 hover:bg-teal-500 text-white font-semibold py-2 rounded-lg transition-colors duration-300">
+                        前往應用
+                    </a>
+                </div>
+            </div>
+
+            <!-- 應用程式卡片 2 (範例) -->
+            <div class="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-300">
+                <div class="p-6">
+                    <div class="flex items-center mb-4">
+                         <!-- 圖示 -->
+                        <div class="w-12 h-12 bg-sky-500/10 border border-sky-500/30 rounded-lg flex items-center justify-center mr-4">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">天氣預報</h3>
+                    </div>
+                    <p class="text-gray-400 mb-6 h-12">即時查詢全球任何城市的天氣狀況。</p>
+                     <a href="#" class="block w-full text-center bg-sky-600 hover:bg-sky-500 text-white font-semibold py-2 rounded-lg transition-colors duration-300">
+                        前往應用
+                    </a>
+                </div>
+            </div>
+
+            <!-- 應用程式卡片 3 (範例) -->
+            <div class="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-300">
+                <div class="p-6">
+                    <div class="flex items-center mb-4">
+                         <!-- 圖示 -->
+                        <div class="w-12 h-12 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-center mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v11.494m-9-5.747h18"/></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">食譜產生器</h3>
+                    </div>
+                    <p class="text-gray-400 mb-6 h-12">不知道要煮什麼？讓這個應用程式為您提供靈感。</p>
+                     <a href="#" class="block w-full text-center bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded-lg transition-colors duration-300">
+                        前往應用
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 您可以複製上面的卡片結構來新增更多應用程式 -->
+
+        </div>
+
+        <!-- 頁腳 -->
+        <footer class="text-center mt-16 text-gray-500">
+            <p>&copy; 2025 - YOUAREBST - 版權所有</p>
+        </footer>
+    </div>
+
+</body>
+</html>
+
