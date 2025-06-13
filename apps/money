@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>理財儀表板</title>
+    <meta name="description" content="一個簡單易用的個人理財儀表板，追蹤您的收入與支出。">
+    <meta name="theme-color" content="#10b981">
+
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Cpath d='M30 65C30 62.2386 32.2386 60 35 60H45V40C45 37.2386 47.2386 35 50 35H65C67.7614 35 70 37.2386 70 40V65C70 67.7614 67.7614 70 65 70H35C32.2386 70 30 67.7614 30 65Z' fill='white'/%3E%3Cpath d='M50 25C47.2386 25 45 27.2386 45 30V45H35C32.2386 45 30 47.2386 30 50V65H40C42.7614 65 45 62.7614 45 60V50H60C62.7614 50 65 47.7614 65 45V30C65 27.2386 62.7614 25 60 25H50Z' fill='white' opacity='0.6'/%3E%3C/svg%3E" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='0' fill='%23059669'/%3E%3Cpath d='M30 65C30 62.2386 32.2386 60 35 60H45V40C45 37.2386 47.2386 35 50 35H65C67.7614 35 70 37.2386 70 40V65C70 67.7614 67.7614 70 65 70H35C32.2386 70 30 67.7614 30 65Z' fill='white'/%3E%3Cpath d='M50 25C47.2386 25 45 27.2386 45 30V45H35C32.2386 45 30 47.2386 30 50V65H40C42.7614 65 45 62.7614 45 60V50H60C62.7614 50 65 47.7614 65 45V30C65 27.2386 62.7614 25 60 25H50Z' fill='white' opacity='0.6'/%3E%3C/svg%3E">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; background-color: #f1f5f9; }
+        html.dark body { background-color: #0f172a; }
+        .loader { border: 4px solid #e2e8f0; border-top: 4px solid #10b981; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        html.dark .loader { border: 4px solid #334155; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-slate-200">
+
+    <!-- 全螢幕載入 -->
+    <div id="app-loader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900">
+        <div class="loader"></div>
+        <p class="mt-4 text-slate-600 dark:text-slate-400">正在載入儀表板...</p>
+    </div>
+
+    <!-- 登入畫面 -->
+    <div id="auth-screen" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-200/50 dark:bg-slate-900/50 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-sm p-8 rounded-xl shadow-2xl animate-fade-in">
+            <form id="login-form">
+                <h2 class="text-2xl font-bold text-center text-slate-800 dark:text-slate-100 mb-2">登入儀表板</h2>
+                <p class="text-center text-slate-500 dark:text-slate-400 mb-6">請使用您的剪貼簿帳號登入。</p>
+                <div class="mb-4">
+                    <label for="login-email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">電子郵件</label>
+                    <input type="email" id="login-email" required class="w-full p-3 border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-400 dark:placeholder:text-slate-500">
+                </div>
+                <div class="mb-4">
+                    <label for="login-password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">密碼</label>
+                    <input type="password" id="login-password" required class="w-full p-3 border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-400 dark:placeholder:text-slate-500">
+                </div>
+                <p id="login-error" class="text-red-500 text-sm text-center mb-4 h-5"></p>
+                <button type="submit" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition duration-300 disabled:bg-emerald-400 disabled:cursor-not-allowed">登入</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 新增交易 Modal -->
+    <div id="add-transaction-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 hidden animate-fade-in">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md p-6 rounded-xl shadow-2xl">
+            <h3 class="text-lg font-bold mb-4 text-slate-900 dark:text-slate-100">新增一筆交易</h3>
+            <form id="transaction-form">
+                <div class="mb-4">
+                    <label for="transaction-description" class="block text-sm font-medium text-slate-700 dark:text-slate-300">描述</label>
+                    <input type="text" id="transaction-description" required class="mt-1 w-full p-2 border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 rounded-md">
+                </div>
+                <div class="mb-4">
+                    <label for="transaction-amount" class="block text-sm font-medium text-slate-700 dark:text-slate-300">金額</label>
+                    <input type="number" id="transaction-amount" required class="mt-1 w-full p-2 border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 rounded-md">
+                </div>
+                <div class="mb-6">
+                     <span class="block text-sm font-medium text-slate-700 dark:text-slate-300">類型</span>
+                    <div class="mt-2 grid grid-cols-2 gap-4">
+                        <label class="flex items-center p-3 border border-slate-300 dark:border-slate-600 rounded-md cursor-pointer has-[:checked]:bg-emerald-50 has-[:checked]:border-emerald-500 dark:has-[:checked]:bg-emerald-900/50 dark:has-[:checked]:border-emerald-500">
+                            <input type="radio" name="transaction-type" value="income" class="h-4 w-4 text-emerald-600 border-slate-300 focus:ring-emerald-500" checked>
+                            <span class="ml-3 text-sm font-medium text-slate-900 dark:text-slate-100">收入</span>
+                        </label>
+                         <label class="flex items-center p-3 border border-slate-300 dark:border-slate-600 rounded-md cursor-pointer has-[:checked]:bg-red-50 has-[:checked]:border-red-500 dark:has-[:checked]:bg-red-900/50 dark:has-[:checked]:border-red-500">
+                            <input type="radio" name="transaction-type" value="expense" class="h-4 w-4 text-red-600 border-slate-300 focus:ring-red-500">
+                            <span class="ml-3 text-sm font-medium text-slate-900 dark:text-slate-100">支出</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-4">
+                     <button type="button" id="cancel-transaction-btn" class="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-2 px-4 rounded-lg">取消</button>
+                     <button type="submit" class="bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 主應用程式容器 -->
+    <div id="app-container" class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 hidden">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-slate-50">儀表板</h1>
+             <div class="flex items-center gap-2">
+                <button id="theme-toggle" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"></button>
+                <button id="logout-btn" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
+             </div>
+        </header>
+
+        <!-- 數據總覽 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow">
+                <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">總資產</h3>
+                <p id="total-balance" class="mt-1 text-3xl font-semibold text-slate-900 dark:text-slate-50">$0</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow">
+                <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">總收入</h3>
+                <p id="total-income" class="mt-1 text-3xl font-semibold text-emerald-600 dark:text-emerald-400">$0</p>
+            </div>
+             <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow">
+                <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">總支出</h3>
+                <p id="total-expense" class="mt-1 text-3xl font-semibold text-red-600 dark:text-red-400">$0</p>
+            </div>
+        </div>
+
+        <!-- 圖表與交易紀錄 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 bg-white dark:bg-slate-800 p-6 rounded-xl shadow">
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">收支分佈</h3>
+                <div id="chart"></div>
+            </div>
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-xl shadow">
+                <div class="flex justify-between items-center mb-4">
+                     <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">近期交易</h3>
+                     <button id="add-transaction-btn" class="bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-emerald-700">+</button>
+                </div>
+                <div id="transaction-list" class="space-y-4">
+                    <!-- 交易項目會動態插入這裡 -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-5 py-3 rounded-lg shadow-xl translate-x-[calc(100%+20px)] transition-transform duration-300 ease-in-out"></div>
+
+    <template id="transaction-item-template">
+        <div class="transaction-item flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
+            <div class="flex items-center gap-4">
+                 <div class="icon-container w-10 h-10 rounded-full flex items-center justify-center"></div>
+                 <div>
+                    <p class="description font-medium text-slate-800 dark:text-slate-100"></p>
+                    <p class="timestamp text-sm text-slate-500 dark:text-slate-400"></p>
+                 </div>
+            </div>
+             <div class="text-right">
+                <p class="amount font-semibold"></p>
+                <button class="delete-btn text-xs text-slate-400 hover:text-red-500">刪除</button>
+            </div>
+        </div>
+    </template>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, query, onSnapshot, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- App 主函式 ---
+        function FinanceDashboard() {
+            let currentUserId = null;
+            let unsubscribeTransactions = null;
+            let chart = null;
+
+            const DOMElements = {
+                appLoader: document.getElementById('app-loader'),
+                authScreen: document.getElementById('auth-screen'),
+                appContainer: document.getElementById('app-container'),
+                loginForm: document.getElementById('login-form'),
+                totalBalance: document.getElementById('total-balance'),
+                totalIncome: document.getElementById('total-income'),
+                totalExpense: document.getElementById('total-expense'),
+                transactionList: document.getElementById('transaction-list'),
+                addTransactionBtn: document.getElementById('add-transaction-btn'),
+                addTransactionModal: document.getElementById('add-transaction-modal'),
+                cancelTransactionBtn: document.getElementById('cancel-transaction-btn'),
+                transactionForm: document.getElementById('transaction-form'),
+            };
+
+            // 使用與剪貼簿應用相同的 Firebase 專案設定
+            const firebaseConfig = {
+                apiKey: "AIzaSyCaYpn4SvP117S_lV-6uCQDrHjBtHcHkhk",
+                authDomain: "clipboard-f3019.firebaseapp.com",
+                projectId: "clipboard-f3019",
+                storageBucket: "clipboard-f3019.firebasestorage.app", 
+                messagingSenderId: "220938416540",
+                appId: "1:220938416540:web:43b19eb65f59ae02ded859",
+                measurementId: "G-F7BS021E8D"
+            };
+            
+            let app, auth, db;
+            try {
+                app = initializeApp(firebaseConfig, "finance-dashboard"); // 為 App 指定名稱以避免衝突
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (error) {
+                if (error.code !== 'duplicate-app') {
+                    console.error("Firebase 初始化失敗:", error);
+                    DOMElements.appLoader.textContent = "應用程式初始化失敗。";
+                }
+            }
+
+            function initChart() {
+                const options = {
+                    series: [0, 0],
+                    chart: { type: 'donut', height: 300 },
+                    labels: ['收入', '支出'],
+                    colors: ['#10b981', '#ef4444'],
+                    legend: { position: 'bottom', labels: { colors: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155' } },
+                    responsive: [{ breakpoint: 480, options: { chart: { width: '100%' } } }]
+                };
+                chart = new ApexCharts(document.querySelector("#chart"), options);
+                chart.render();
+            }
+
+            function updateUI(transactions) {
+                let income = 0, expense = 0;
+                transactions.forEach(t => {
+                    if (t.type === 'income') income += t.amount;
+                    else expense += t.amount;
+                });
+                
+                DOMElements.totalBalance.textContent = `$${(income - expense).toLocaleString()}`;
+                DOMElements.totalIncome.textContent = `$${income.toLocaleString()}`;
+                DOMElements.totalExpense.textContent = `$${expense.toLocaleString()}`;
+
+                chart.updateSeries([income, expense]);
+                
+                DOMElements.transactionList.innerHTML = '';
+                if (transactions.length === 0) {
+                    DOMElements.transactionList.innerHTML = '<p class="text-center text-slate-500 dark:text-slate-400 py-4">還沒有任何交易紀錄。</p>';
+                } else {
+                     transactions.forEach(t => {
+                        const template = document.getElementById('transaction-item-template').content.cloneNode(true);
+                        const itemDiv = template.querySelector('.transaction-item');
+                        const iconContainer = itemDiv.querySelector('.icon-container');
+                        const amountEl = itemDiv.querySelector('.amount');
+                        
+                        itemDiv.querySelector('.description').textContent = t.description;
+                        itemDiv.querySelector('.timestamp').textContent = new Date(t.timestamp.seconds * 1000).toLocaleDateString();
+                        amountEl.textContent = `${t.type === 'income' ? '+' : '-'} $${t.amount.toLocaleString()}`;
+                        
+                        if(t.type === 'income') {
+                            amountEl.classList.add('text-emerald-600', 'dark:text-emerald-400');
+                            iconContainer.classList.add('bg-emerald-100', 'dark:bg-emerald-900');
+                            iconContainer.innerHTML = `<svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01"/></svg>`;
+                        } else {
+                            amountEl.classList.add('text-red-600', 'dark:text-red-400');
+                             iconContainer.classList.add('bg-red-100', 'dark:bg-red-900');
+                            iconContainer.innerHTML = `<svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01"/></svg>`;
+                        }
+
+                        itemDiv.querySelector('.delete-btn').addEventListener('click', async () => {
+                           await deleteDoc(doc(db, `users/${currentUserId}/transactions`, t.id));
+                           showToast('交易已刪除');
+                        });
+                        
+                        DOMElements.transactionList.appendChild(itemDiv);
+                    });
+                }
+            }
+
+            function setupEventListeners() {
+                DOMElements.loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const email = document.getElementById('login-email').value;
+                    const password = document.getElementById('login-password').value;
+                    const errorEl = document.getElementById('login-error');
+                    const submitBtn = DOMElements.loginForm.querySelector('button[type="submit"]');
+                    errorEl.textContent = '';
+                    submitBtn.disabled = true;
+                    try {
+                        await signInWithEmailAndPassword(auth, email, password);
+                    } catch (error) {
+                        errorEl.textContent = "電子郵件或密碼錯誤。";
+                    } finally {
+                        submitBtn.disabled = false;
+                    }
+                });
+
+                document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+                
+                DOMElements.addTransactionBtn.addEventListener('click', () => DOMElements.addTransactionModal.classList.remove('hidden'));
+                DOMElements.cancelTransactionBtn.addEventListener('click', () => DOMElements.addTransactionModal.classList.add('hidden'));
+
+                DOMElements.transactionForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const description = document.getElementById('transaction-description').value;
+                    const amount = parseFloat(document.getElementById('transaction-amount').value);
+                    const type = DOMElements.transactionForm.querySelector('input[name="transaction-type"]:checked').value;
+
+                    if (description && amount > 0) {
+                        await addDoc(collection(db, `users/${currentUserId}/transactions`), {
+                            description, amount, type, timestamp: serverTimestamp()
+                        });
+                        DOMElements.transactionForm.reset();
+                        DOMElements.addTransactionModal.classList.add('hidden');
+                        showToast('交易已新增');
+                    }
+                });
+
+                 const themeToggle = document.getElementById('theme-toggle');
+                 const sunIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`;
+                 const moonIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>`;
+                 const updateThemeIcon = () => { themeToggle.innerHTML = document.documentElement.classList.contains('dark') ? sunIcon : moonIcon; };
+                 themeToggle.addEventListener('click', () => { document.documentElement.classList.toggle('dark'); localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); chart.updateOptions({ legend: { labels: { colors: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155' } } }); updateThemeIcon(); });
+                 updateThemeIcon();
+            }
+            
+            let toastTimer;
+            function showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.style.transform = 'translateX(0)';
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => { toast.style.transform = 'translateX(calc(100% + 20px))'; }, 3000);
+            }
+            
+            this.init = () => {
+                onAuthStateChanged(auth, (user) => {
+                    DOMElements.appLoader.classList.add('hidden');
+                    if (user && user.emailVerified) { // 確保 email 已驗證
+                        currentUserId = user.uid;
+                        DOMElements.authScreen.classList.add('hidden');
+                        DOMElements.appContainer.classList.remove('hidden');
+                        if (!chart) initChart();
+                        if (unsubscribeTransactions) unsubscribeTransactions();
+                        
+                        unsubscribeTransactions = onSnapshot(query(collection(db, `users/${currentUserId}/transactions`), orderBy('timestamp', 'desc')), (snapshot) => {
+                            const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            updateUI(transactions);
+                        });
+                    } else {
+                        currentUserId = null;
+                        DOMElements.authScreen.classList.remove('hidden');
+                        DOMElements.appContainer.classList.add('hidden');
+                        if (unsubscribeTransactions) unsubscribeTransactions();
+                    }
+                });
+                setupEventListeners();
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = new FinanceDashboard();
+            app.init();
+        });
+    </script>
+</body>
+</html>
+
